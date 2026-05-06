@@ -143,7 +143,7 @@
             <h2 id="auth-title" style="text-align: center; color: var(--primary-blue);">系統登入</h2>
             <div id="login-form">
                 <label>姓名 / 帳號</label>
-                <input type="text" id="username" placeholder="請輸入姓名 (如：李阿饅)">
+                <input type="text" id="username" placeholder="請輸入姓名/帳號">
                 <label>密碼</label>
                 <input type="password" id="password" placeholder="請輸入密碼">
                 <button class="btn-primary" onclick="handleLogin()">登入</button>
@@ -236,7 +236,7 @@
 
     <script>
         // --- 這裡要填入你在 Google Apps Script 部署拿到的網址 ---
-        const GAS_URL = "請將你的API網址貼到這裡保留雙引號";
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbwTrXfZTeLMm5_IKK5Zca5n0ZmRUm13lNk5rRkPku6w2YeROS0mVv2uzTV4rFo68u5qRQ/exec";
         
         let isRegisterMode = false;
 
@@ -249,7 +249,7 @@
             document.getElementById('status-msg').innerText = "";
         }
 
-        // 處理登入邏輯
+        // 處理真實登入與註冊邏輯
         function handleLogin() {
             const name = document.getElementById('username').value.trim();
             const pass = document.getElementById('password').value.trim();
@@ -261,22 +261,37 @@
             }
 
             statusMsg.style.color = "var(--text-main)";
-            statusMsg.innerText = "連線驗證中...";
+            statusMsg.innerText = "連線到 Google 資料庫中...";
 
-            // 實務上這裡會用 fetch(GAS_URL) 呼叫後端。
-            // 為了讓你介面可以直接測試，我們寫一個本機模擬判斷：
-            setTimeout(() => {
-                if (name === "李阿饅" || name === "admin") {
-                    // 進入管理員模式
-                    enterApp(name, "admin");
-                } else {
-                    // 進入一般客人模式
+            // 呼叫 Google Apps Script API
+            fetch(GAS_URL, {
+                method: 'POST',
+                body: JSON.stringify({
+                    action: isRegisterMode ? 'register' : 'login',
+                    name: name,
+                    password: pass
+                }),
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
                     if (isRegisterMode) {
                         alert("註冊成功！系統為您自動登入。");
+                        enterApp(name, "user");
+                    } else {
+                        // 這裡會抓取 Google Sheet 裡面設定的 role (例如：admin 或 user)
+                        enterApp(name, data.role); 
                     }
-                    enterApp(name, "user");
+                } else {
+                    statusMsg.style.color = "var(--danger)";
+                    statusMsg.innerText = data.message; // 顯示密碼錯誤或已被註冊
                 }
-            }, 800);
+            })
+            .catch(error => {
+                statusMsg.style.color = "var(--danger)";
+                statusMsg.innerText = "連線失敗，請檢查 API 網址是否正確。";
+            });
         }
 
         // 進入系統主畫面
@@ -293,6 +308,8 @@
                 document.getElementById('admin-dashboard').classList.add('hidden');
                 document.getElementById('customer-dashboard').classList.remove('hidden');
                 document.getElementById('nav-title').innerText = "商品大廳";
+                // 登入成功後，去 Google Sheet 撈取商品清單
+                fetchProducts();
             }
         }
 
@@ -307,10 +324,14 @@
             toggleAuthMode(); toggleAuthMode(); // 重置為登入畫面
         }
 
-        // 模擬自動分配邏輯 (展示用)
+        // 撈取真實商品資料 (準備中)
+        function fetchProducts() {
+            console.log("準備撈取商品資料...");
+            // 下一個階段我們會把真正的商品卡片渲染到這裡
+        }
+
         function autoAllocate(totalVal) {
             alert("系統將依下單時間，自動將 " + totalVal + " 件商品優先分配給小明與小美。");
-            // 實際會在這裡利用 JavaScript 重新計算數量並更新下方的數字
         }
     </script>
 </body>
